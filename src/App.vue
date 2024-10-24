@@ -1,5 +1,4 @@
 <template>
-  <!-- :class="weather.main && weather.main.temp > 16 ? 'warm' : ''" -->
   <div id="app">
     <main>
       <div class="search-box">
@@ -13,34 +12,50 @@
       </div>
 
       <div class="weather-card">
-        <div class="city-time">
-          11:44<span>AM</span>
-          <!-- {{ cityTime }} -->
-        </div>
-        <!-- <div class="city-details" v-if="weather.main"> -->
-        <div class="city-details" >
-          <!-- <h2>{{ weather.name }}</h2>
-          <p>{{ weather.sys.country }}</p> -->
-           <h2>Nairobi</h2>
-          <p>KE</p>
-        </div>
-        <!-- <div class="weather" v-if="weather.main"> -->
-        <div class="weather">
-          <div>
-            <!-- {{ weather.weather[0].main }} -->
-            <img src="./assets/cloud.png"/>
+        <!-- Weather data fetched: Display dynamic weather info -->
+        <div v-if="weather.main">
+          <div class="city-time">
+            {{ cityTime.hours }}:{{ cityTime.minutes }} <span>{{ cityTime.ampm }}</span>
           </div>
-        </div>
-        <!-- <div class="date-weather" v-if="weather.main"> -->
-        <div class="date-weather">
-          <div class="temperature">
-            17<span>&deg;</span>
-            <!-- {{ Math.round(weather.main.temp) }}&deg; -->
+          <div class="city-details">
+            <h2>{{ weather.name }}</h2>
+            <p>{{ weather.sys.country }}</p>
           </div>
-          <div class="date">
-            01 April
-            <!-- {{ dateBuilder() }} -->
+
+          <div class="weather">
+            <div>
+              <img :src="weatherIcon" alt="Weather icon" />
             </div>
+          </div>
+
+          <div class="date-weather">
+            <div class="temperature">
+              {{ Math.round(weather.main.temp) }}<span>&deg;</span>
+            </div>
+            <div class="date">
+              {{ dateBuilder() }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Default UI: No weather data fetched -->
+        <div v-else>
+          <div class="city-time">11:44<span>AM</span></div>
+          <div class="city-details">
+            <h2>Nairobi</h2>
+            <p>KE</p>
+          </div>
+
+          <div class="weather">
+            <div>
+              <img src="./assets/cloud.png" alt="Default weather" />
+            </div>
+          </div>
+
+          <div class="date-weather">
+            <div class="temperature">17<span>&deg;</span></div>
+            <div class="date">01 April</div>
+          </div>
         </div>
       </div>
     </main>
@@ -49,43 +64,35 @@
 
 <script>
 export default {
-  name: "app",
   data() {
     return {
-      api_key: "36df309c5e261213fe8c1651d1e57a1e", // Use your own API key
-      url_base: "https://api.openweathermap.org/data/2.5/",
       query: "",
-      weather: {},
+      weather: {}, // Initially empty, weather data will be stored here
+      localTime: "", // To hold the city time
     };
   },
   methods: {
     fetchWeather() {
+      const api_key = "36df309c5e261213fe8c1651d1e57a1e"; // Replace with your OpenWeather API key
+      const url_base = "https://api.openweathermap.org/data/2.5/";
+
       if (this.query) {
-        fetch(
-          `${this.url_base}weather?q=${this.query}&units=metric&APPID=${this.api_key}`
-        )
-          .then((res) => {
-            if (!res.ok) {
-              throw new Error("City not found");
-            }
-            return res.json();
-          })
+        fetch(`${url_base}weather?q=${this.query}&units=metric&APPID=${api_key}`)
+          .then((res) => res.json())
           .then(this.setResults)
           .catch((error) => {
-            alert(error.message);
+            console.error("Error fetching weather:", error);
           });
       }
     },
     setResults(results) {
       this.weather = results;
-      this.updateCityTime(); 
+      this.updateCityTime();
     },
     updateCityTime() {
-      // Get the UTC time and add the city's timezone offset
-      let utcTime = Date.now(); // Current time in milliseconds
-      let cityOffset = this.weather.timezone * 1000; // Timezone offset in milliseconds
-
-      let localTime = new Date(utcTime + cityOffset);
+      const utcTime = Date.now(); // Get current UTC time
+      const cityOffset = this.weather.timezone * 1000; // Convert city timezone offset to milliseconds
+      const localTime = new Date(utcTime + cityOffset); // Calculate local city time
       this.localTime = localTime;
     },
     dateBuilder() {
@@ -102,31 +109,72 @@ export default {
         "September",
         "October",
         "November",
-        "December",
+        "December"
+      ];
+      let days = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday"
       ];
 
+      let day = days[d.getDay()];
       let date = d.getDate();
       let month = months[d.getMonth()];
+      let year = d.getFullYear();
 
-      return `${date} ${month}`;
-    },
-    computed: {
-      cityTime() {
-        if (!this.localTime) return "";
-        // Format time as hh:mm AM/PM
-        let hours = this.localTime.getUTCHours();
-        let minutes = this.localTime.getUTCMinutes();
-        let ampm = hours >= 12 ? "PM" : "AM";
-        hours = hours % 12;
-        hours = hours ? hours : 12; // The hour '0' should be '12'
-        minutes = minutes < 10 ? "0" + minutes : minutes;
-
-        return `${hours}:${minutes} ${ampm}`;
-      },
+      return `${day} ${date} ${month} ${year}`;
     },
   },
+  computed: {
+    cityTime() {
+      if (!this.localTime) {
+        return { hours: "00", minutes: "00", ampm: "AM" }; // Default time if no local time is available
+      }
+      let hours = this.localTime.getUTCHours();
+      let minutes = this.localTime.getUTCMinutes();
+      let ampm = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12;
+      hours = hours ? hours : 12; // The hour '0' should be '12'
+      minutes = minutes < 10 ? "0" + minutes : minutes;
+
+      return {
+        hours: hours < 10 ? "0" + hours : hours, // Ensure hours are two digits
+        minutes: minutes,
+        ampm: ampm
+      };
+    },
+    weatherIcon() {
+      if (!this.weather.weather) return "./assets/default-weather.png"; // Default image if no weather data is available
+
+      const weatherCondition = this.weather.weather[0].main.toLowerCase();
+
+      // Map weather conditions to images
+      const weatherImages = {
+        clear: "./assets/clear-sunny.png",
+        clouds: "./assets/cloudy.png",
+        rain: "./assets/rain.png",
+        snow: "./assets/snow.png",
+        drizzle: "./assets/drizzle.png",
+        thunderstorm: "./assets/thunderstorm.png",
+        mist: "./assets/mist.png",
+        haze: "./assets/haze.png",
+        fog: "./assets/fog.png",
+        smoke: "./assets/smoke.png",
+        dust: "./assets/dust.png",
+        sand: "./assets/sand.png",
+      };
+
+      // Fallback to default if condition not found
+      return weatherImages[weatherCondition] || "./assets/default-weather.png";
+    }
+  }
 };
 </script>
+
 
 <style scoped>
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap");
@@ -190,7 +238,7 @@ main {
   width: 360px;
   height: 500px;
 }
-.city-time{
+.city-time {
   height: 100px;
   width: 200px;
   background: #00000000;
@@ -202,20 +250,20 @@ main {
   font-size: 50px;
   font-weight: 600;
 }
-.city-time span{
+.city-time span {
   font-size: 20px !important;
 }
-.city-details h2{
+.city-details h2 {
   font-size: 38px;
   font-weight: 600;
   color: #c3c4c9;
 }
-.city-details p{
+.city-details p {
   color: #7f7f80;
   font-size: 20px;
   font-weight: 600;
 }
-.weather{
+.weather {
   width: 328px;
   height: 200px;
   position: absolute;
@@ -228,9 +276,8 @@ main {
   font-weight: 600;
   color: #c3c4c9;
 }
-img{
+img {
   width: 700px;
-
 }
 .date-weather {
   width: 328px;
@@ -245,13 +292,12 @@ img{
   font-weight: 900;
   color: #acadaf;
 }
-.temperature span{
+.temperature span {
   color: #7f7f80;
 }
-.date{
-font-size: 20px;
+.date {
+  font-size: 20px;
   font-weight: 900;
   color: #7f7f80;
-;
 }
 </style>
